@@ -34,8 +34,8 @@ MODELS=(
 )
 
 PROMPTS=(
-    "cot"
-    "direct-output"
+    "single_round"
+    "multi_round"
 )
 
 # Execute the script for each model

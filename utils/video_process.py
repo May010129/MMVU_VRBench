@@ -88,7 +88,6 @@ def read_video(video_path: str, total_frames: int):
     try:
         # Initialize a list to store base64 encoded frames
         base64_frames = []
-        
         # Read frames in a loop
         while True:
             success, frame = video.read()

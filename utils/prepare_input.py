@@ -8,26 +8,55 @@ from tqdm import tqdm
 import hashlib
 import base64
 
-def prepare_qa_text_input(model_name, query, prompt):
-    question_type = query["question_type"]
-    os.makedirs("cache", exist_ok=True)
-    if question_type == "multiple-choice":
-        optionized_list = [f"{key}: {value}" for i, (key, value) in enumerate(query['choices'].items())]
-        optionized_str = "\n".join(optionized_list)
+def dict_to_text(question, options):
+    option_prompt = "\n".join(f"{k}: {v}" for k, v in options.items())
+    return f"Question: {question}\nOptions:\n{option_prompt}"
 
-        user_prompt = prompt[question_type]
-        qa_text_prompt = user_prompt.substitute(question=query['question'], optionized_str=optionized_str)
-    elif question_type == "open-ended":
-        user_prompt = prompt[question_type]
-        qa_text_prompt = user_prompt.substitute(question=query['question'])
+def get_previous_reasoning(idx, previous_steps):
+    """Generate reasoning text from previous steps."""
+    if idx == 0:
+        return ""
+    return "\n".join(
+        f"question: {step['question']}\nanswer: {step['options'][step['correct']]}"
+        for step in previous_steps
+    )
+
+
+def prepare_qa_text_input(video_summary, qa_dict, round, prompt):
+    if prompt["type"] == "single_mcq":
+        if round == 1:
+            qa_text_prompt = prompt["content"]["1st-round"].substitute(
+                question=qa_dict["question"],
+                video_summary=video_summary
+            )
+            return {"type": "text", "text": qa_text_prompt}, qa_text_prompt
+            
+        elif round == 2:
+            return prompt["content"]["2nd-round"].substitute(
+                multiple_choice_question=dict_to_text(qa_dict["question"], qa_dict["options"])
+            )
+    elif prompt["type"] == "multi_mcq":
+        mcq_data = qa_dict["mcq_data"]
+        if qa_dict["reasoning_type"] == "Event Summarization":
+            qa_text_prompt = prompt["content"].substitute(
+                previous_reasoning="",
+                question=dict_to_text(mcq_data["summary_mcq"]["question"], mcq_data["summary_mcq"]["options"]),
+                video_summary=video_summary
+            )
+            return {"type": "text", "text": qa_text_prompt}, qa_text_prompt
+        else:
+            messages, prompts = [], []
+            for idx, step in enumerate(mcq_data["steps"]):
+                qa_text_prompt = prompt["content"].substitute(
+                    previous_reasoning=get_previous_reasoning(idx, mcq_data["steps"][:idx]),
+                    question=dict_to_text(step["question"], step["options"]),
+                    video_summary=video_summary
+                )
+                messages.append({"type": "text", "text": qa_text_prompt})
+                prompts.append(qa_text_prompt)
+            return messages, prompts
     else:
-        raise ValueError(f"Invalid question type: {question_type}")
-    
-    qa_text_message = {
-        "type": "text",
-        "text": qa_text_prompt
-    }
-    return qa_text_message, qa_text_prompt
+        raise ValueError(f"Invalid question type: {prompt["type"]}")
 
 def prepare_multi_image_input(model_name, video_path, total_frames, video_tmp_dir = "video_cache"):
     base64frames = prepare_base64frames(model_name, video_path, total_frames, video_tmp_dir = video_tmp_dir)

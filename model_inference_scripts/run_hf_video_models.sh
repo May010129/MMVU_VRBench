@@ -28,8 +28,8 @@ MODELS=(
 )
 
 PROMPTS=(
-    "cot"
-    "direct-output"
+    "single_round"
+    "multi_round"
 )
 
 for DATA_PATH in "${DATA_PATHS[@]}"; do

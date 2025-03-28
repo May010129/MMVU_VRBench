@@ -3,7 +3,7 @@ import json
 import argparse
 import os
 import sys
-from utils.constant import COT_PROMPT, DO_PROMPT
+from utils.constant import COT_PROMPT, DO_PROMPT, SINGLE_ROUND_MCQ, MULTI_ROUND_MCQ
 from utils.video_process import download_video
 from transformers.utils import logging
 logging.set_verbosity_error() 
@@ -37,6 +37,7 @@ def main(
         from model_inference.videollama3 import generate_response
     else:
         raise ValueError(f"Invalid model name: {model_name}")
+    
     generate_response(model_name=model_name,
                     prompt=prompt,
                     queries=queries, 
@@ -45,25 +46,24 @@ def main(
                     n = n)
         
 prompt_dict = {
-    "cot": COT_PROMPT,
-    "direct-output": DO_PROMPT,
+    "single_round": SINGLE_ROUND_MCQ,
+    "multi_round": MULTI_ROUND_MCQ,
 }
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--model', type=str, required=True)
-    parser.add_argument('--prompt', type=str, default="cot")
+    parser.add_argument('--prompt', type=str, default="single_round")
     parser.add_argument('--data_path', type=str, required=True)
-    parser.add_argument('--total_frames', type=int, default=10)
+    parser.add_argument('--total_frames', type=int, default=16)
     parser.add_argument('--output_dir', type=str, default="outputs")
     parser.add_argument("--api_base",type=str,default="")
-    parser.add_argument("--max_num",type=int,default=5)
     parser.add_argument("--n",type=int,default=1)
-    parser.add_argument("--overwrite",action="store_true", default=False)
 
     args = parser.parse_args()
+    
     model_name = args.model
-    total_frames = args.total_frames # total_frames
+    total_frames = args.total_frames 
 
     try:
         prompt = prompt_dict[args.prompt]
@@ -71,37 +71,41 @@ if __name__ == "__main__":
         print("Invalid prompt")
         sys.exit(1)
 
-
     os.makedirs(args.output_dir, exist_ok=True)
         
-    data_path_suffix = args.data_path.split("/")[-1].split(".")[0]
-    output_dir = os.path.join(args.output_dir, f"{data_path_suffix}_{args.prompt}")
+    output_dir = os.path.join(args.output_dir, f"{args.prompt}")
     os.makedirs(output_dir, exist_ok=True)
     
     output_name = model_name.split("/")[-1]
     if total_frames == -1:
-        output_path = os.path.join(output_dir, f"{output_name}_1fps.json")
+        output_path = os.path.join(output_dir, f"{output_name}_1fps.jsonl")
     else:
-        output_path = os.path.join(output_dir, f"{output_name}_{total_frames}frame.json")
+        output_path = os.path.join(output_dir, f"{output_name}_{total_frames}frame.jsonl")
 
-
-    queries = json.load(open(args.data_path, "r"))
-    if args.max_num > 0:
-        queries = queries[:args.max_num]
+    total_json_ls = [json.loads(line) for line in open(args.data_path, "r")]
     
-    # download videos
-    for query in queries:
-        download_video(query['video'])
+    if os.path.exists(output_path):
+        orig_output = [json.loads(line) for line in open(output_path, "r")]
+        exist_id = set([long_vid['video_id'] for long_vid in orig_output])
 
-    if os.path.exists(output_path) and args.overwrite:
-        orig_output = json.load(open(output_path, "r"))
-        if len(orig_output) >= len(queries):
-            print(f"Output file {output_path} already exists. Skipping.")
-            sys.exit(0)
-        else:
-            print(f"Overwrite {output_path}")
+    total_json_ls = [line for line in total_json_ls if line['video_id'] not in exist_id]
 
     print(f"=========Running {args.model}=========\n")
+    
+    queries = []
+    key = "one_step_mcq" if args.prompt == "single_round" else "multi_step_mcq"
+    for long_vid in total_json_ls:
+        query = {
+                "video_id": long_vid['video_id'],
+                "video_path": long_vid['video_path'],
+                "video_summary": long_vid['video_summary'],
+                key: long_vid[key]
+            }
+        queries.append(query)
+    
+    #TODO
+    # multi-gpu inference
+
     main(
         model_name = args.model, 
         prompt = prompt, 

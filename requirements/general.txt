@@ -1,5 +1,5 @@
 aiohttp==3.10.5
-aiohttp==3.11.9
+# aiohttp==3.11.9
 aiolimiter==1.2.1
 anthropic==0.43.1
 bitsandbytes==0.45.0
@@ -8,10 +8,12 @@ deepspeed==0.16.2
 einops==0.8.0
 fastapi==0.115.6
 gradio==5.12.0
-huggingface_hub==0.24.6
+# huggingface_hub==0.24.6
+huggingface_hub==0.25.1
 imageio==2.37.0
 llava==0.0.1.dev0
-numpy==2.2.2
+# numpy==2.2.2
+numpy
 openai==1.59.9
 opencv_python==4.10.0.84
 opencv_python_headless==4.11.0.86
@@ -32,5 +34,6 @@ torchvision==0.20.1
 tqdm==4.66.5
 transformers==4.48.0
 uvicorn==0.34.0
-vllm==0.6.6.post2.dev270+g630eb5b5
+# vllm==0.6.6.post2.dev270+g630eb5b5
+vllm==0.6.6.post1
 zhipuai==2.1.5.20250106

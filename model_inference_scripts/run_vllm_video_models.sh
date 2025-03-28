@@ -13,7 +13,6 @@ DATA_PATHS=(
   # "data/test.json"
   "data/validation.json"
 )
-OPTIONS="--overwrite"
 
 # Models to run
 MODELS=(
@@ -24,8 +23,8 @@ MODELS=(
 )
 
 PROMPTS=(
-    "cot"
-    "direct-output"
+    "single_round"
+    "multi_round"
 )
 
 # Execute the script for each model
@@ -37,7 +36,7 @@ for DATA_PATH in "${DATA_PATHS[@]}"; do
                     --total_frames "$TOTAL_FRAMES" \
                     --max_num "$MAX_NUM" \
                     --data_path "$DATA_PATH" \
-                    $OPTIONS
+                    
     done
   done
 done
